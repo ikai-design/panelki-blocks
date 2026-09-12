@@ -11,6 +11,8 @@ npm run dev
 
 Open the local URL printed by Vite. Create a production build with `npm run build`, then inspect it with `npm run preview`.
 
+The default URL renders the residential courtyard. Append `?theme=industrial` to render the alternative **Factory Dusk** environment with the same gameplay, camera and UI.
+
 ## Controls
 
 | Input | Action |
@@ -46,11 +48,14 @@ The ground is generated procedurally in the browser from a seeded canvas texture
 ```bash
 npm run export-assets
 npm run build-environment
+npm run build-industrial-theme
 ```
 
 This expects Blender at `/Applications/Blender.app`; set `BLENDER_BIN` to another executable when needed. The web build has no Blender runtime dependency.
 
 `build-environment` procedurally models and exports the dead tree and abandoned playground GLBs. The playground includes a sandbox, climbing frame, slide, swing and half-buried tire.
+
+`build-industrial-theme` uses Blender to rebuild the separate Factory Dusk GLB: asphalt apron, sparse chain-link fence, service warehouse, transformer cabinet, exposed conduits, two industrial lamps, weeds and one distant smokestack.
 
 ## Test
 

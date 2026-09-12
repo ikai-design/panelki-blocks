@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "export-assets": "sh scripts/export-assets.sh",
-    "build-environment": "/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python scripts/build_environment.py"
+    "build-environment": "/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python scripts/build_environment.py",
+    "build-industrial-theme": "/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --quiet --python scripts/build_industrial_theme.py"
   },
   "dependencies": {
     "@react-three/drei": "10.7.6",

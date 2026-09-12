@@ -1,14 +1,26 @@
-import { StrictMode, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Game } from './game/Game';
 import { GameScene } from './rendering/Scene';
-import { Hud, Overlay, TouchControls } from './ui/Hud';
+import { Hud, Overlay, StageSelector, TouchControls } from './ui/Hud';
+import type { Stage } from './ui/Hud';
+import { LoadingScreen } from './ui/LoadingScreen';
 import './styles.css';
 import './edge-ui.css';
 
 function App() {
   const game = useMemo(() => new Game(), []);
+  const theme = useMemo(() => new URLSearchParams(window.location.search).get('theme') === 'industrial' ? 'industrial' as const : 'courtyard' as const, []);
   const snap = useSyncExternalStore(game.subscribe, game.snapshot);
+  const [rotationHintDismissed, setRotationHintDismissed] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const dismissRotationHint = useCallback(() => setRotationHintDismissed(true), []);
+  const markSceneReady = useCallback(() => setSceneReady(true), []);
+  const changeStage = useCallback((next: Stage) => {
+    const url = new URL(window.location.href);
+    if (next === 'industrial') url.searchParams.set('theme', 'industrial'); else url.searchParams.delete('theme');
+    window.location.assign(url);
+  }, []);
   const view = useRef({ forward: [0, -1] as [number, number], right: [1, 0] as [number, number] });
   const onViewBasis = useCallback((forward: [number, number], right: [number, number]) => { view.current = { forward, right }; }, []);
   const act = useCallback((action: string) => {
@@ -18,7 +30,7 @@ function App() {
     else if (action === 'x' || action === 'y' || action === 'z') {
       // Renderer maps game [x,y,z] to world [x,z,y], so keep the button labels on world axes.
       const worldAxis: Record<string, 'X' | 'Y' | 'Z'> = { x: 'X', y: 'Z', z: 'Y' };
-      game.rotate(worldAxis[action]);
+      if (game.rotate(worldAxis[action])) setRotationHintDismissed(true);
     }
     else {
       const { forward, right } = view.current;
@@ -48,7 +60,7 @@ function App() {
     addEventListener('pointermove', onMove, { passive: true }); return () => { removeEventListener('pointermove', onMove); clearTimeout(timer); document.body.classList.remove('edge-active'); };
   }, []);
   const start = () => snap.phase === 'paused' ? game.togglePause() : game.start();
-  return <main className={`phase-${snap.phase}`}><GameScene snap={snap} onViewBasis={onViewBasis} /><div className="grain" /><Hud snap={snap} onPause={() => act('pause')} onRestart={() => act('restart')} /><div className="caption"><span>5 × 4 × 12</span><p>Drag to orbit · Scroll to zoom<br />Arrows follow the camera.</p></div><TouchControls act={act} /><Overlay phase={snap.phase} onStart={start} /></main>;
+  return <main className={`phase-${snap.phase} theme-${theme}`}><GameScene snap={snap} onViewBasis={onViewBasis} showRotationHint={snap.phase === 'playing' && !rotationHintDismissed} onDismissRotationHint={dismissRotationHint} theme={theme} onReady={markSceneReady} /><div className="grain" /><Hud snap={snap} onPause={() => act('pause')} onRestart={() => act('restart')} /><StageSelector stage={theme} onChange={changeStage} /><div className="caption"><span>5 × 4 × 12</span><p>Drag to orbit · Scroll to zoom<br />Arrows follow the camera.</p></div><TouchControls act={act} /><Overlay phase={snap.phase} onStart={start} /><LoadingScreen sceneReady={sceneReady} /></main>;
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
