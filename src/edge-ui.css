@@ -1,0 +1,23 @@
+@media (min-width: 701px) {
+  .overlay { left: 24px; }
+}
+
+.phase-playing .brand,
+.phase-playing .stats,
+.phase-playing .actions,
+.phase-playing .caption {
+  opacity: .34;
+  transition: opacity .35s ease, background-color .35s ease;
+}
+
+.edge-active .phase-playing .brand,
+.edge-active .phase-playing .stats,
+.edge-active .phase-playing .actions,
+.edge-active .phase-playing .caption,
+.phase-playing .brand:hover,
+.phase-playing .stats:hover,
+.phase-playing .actions:hover,
+.phase-playing .caption:hover,
+.phase-playing :focus-within {
+  opacity: 1;
+}

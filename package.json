@@ -1,0 +1,32 @@
+{
+  "name": "panelki-blocks",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "export-assets": "sh scripts/export-assets.sh",
+    "build-environment": "/Applications/Blender.app/Contents/MacOS/Blender --background --factory-startup --python scripts/build_environment.py"
+  },
+  "dependencies": {
+    "@react-three/drei": "10.7.6",
+    "@react-three/fiber": "9.4.0",
+    "@react-three/postprocessing": "3.0.4",
+    "postprocessing": "6.38.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/three": "^0.180.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "vitest": "^3.2.4"
+  }
+}
