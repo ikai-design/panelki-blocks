@@ -2,7 +2,7 @@ import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncE
 import { createRoot } from 'react-dom/client';
 import { Game } from './game/Game';
 import { GameScene } from './rendering/Scene';
-import { Hud, Overlay, StageSelector, TouchControls } from './ui/Hud';
+import { Hud, Overlay, TouchControls } from './ui/Hud';
 import type { Stage } from './ui/Hud';
 import { LoadingScreen } from './ui/LoadingScreen';
 import './styles.css';
@@ -14,8 +14,10 @@ function App() {
   const snap = useSyncExternalStore(game.subscribe, game.snapshot);
   const [rotationHintDismissed, setRotationHintDismissed] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  const [gameVisible, setGameVisible] = useState(false);
   const dismissRotationHint = useCallback(() => setRotationHintDismissed(true), []);
   const markSceneReady = useCallback(() => setSceneReady(true), []);
+  const revealGame = useCallback(() => setGameVisible(true), []);
   const changeStage = useCallback((next: Stage) => {
     const url = new URL(window.location.href);
     if (next === 'industrial') url.searchParams.set('theme', 'industrial'); else url.searchParams.delete('theme');
@@ -60,7 +62,7 @@ function App() {
     addEventListener('pointermove', onMove, { passive: true }); return () => { removeEventListener('pointermove', onMove); clearTimeout(timer); document.body.classList.remove('edge-active'); };
   }, []);
   const start = () => snap.phase === 'paused' ? game.togglePause() : game.start();
-  return <main className={`phase-${snap.phase} theme-${theme}`}><GameScene snap={snap} onViewBasis={onViewBasis} showRotationHint={snap.phase === 'playing' && !rotationHintDismissed} onDismissRotationHint={dismissRotationHint} theme={theme} onReady={markSceneReady} /><div className="grain" /><Hud snap={snap} onPause={() => act('pause')} onRestart={() => act('restart')} /><StageSelector stage={theme} onChange={changeStage} /><div className="caption"><span>5 × 4 × 12</span><p>Drag to orbit · Scroll to zoom<br />Arrows follow the camera.</p></div><TouchControls act={act} /><Overlay phase={snap.phase} onStart={start} /><LoadingScreen sceneReady={sceneReady} /></main>;
+  return <main className={`phase-${snap.phase} theme-${theme}`}><div className={`game-surface${gameVisible?' is-visible':''}`} aria-hidden={!gameVisible}><GameScene snap={snap} onViewBasis={onViewBasis} showRotationHint={gameVisible&&snap.phase === 'playing' && !rotationHintDismissed} onDismissRotationHint={dismissRotationHint} theme={theme} onReady={markSceneReady} /></div>{gameVisible&&<><div className="grain" /><Hud snap={snap} onPause={() => act('pause')} onRestart={() => act('restart')} />{snap.phase!=='title'&&<div className="caption"><span>5 × 4 × 12</span><p>Drag to orbit · Scroll to zoom<br />Arrows follow the camera.</p></div>}<TouchControls act={act} /><Overlay phase={snap.phase} onStart={start} stage={theme} onStageChange={changeStage} /></>}<LoadingScreen sceneReady={sceneReady} onReveal={revealGame} /></main>;
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);

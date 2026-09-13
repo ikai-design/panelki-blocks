@@ -9,13 +9,22 @@ const statusFor = (progress: number) => {
   return 'Almost ready...';
 };
 
-export function LoadingScreen({ sceneReady }: { sceneReady: boolean }) {
+export function LoadingScreen({ sceneReady, onReveal }: { sceneReady: boolean; onReveal: () => void }) {
   const { active, progress: assetProgress, loaded, total } = useProgress();
   const [staged, setStaged] = useState(4);
   const [leaving, setLeaving] = useState(false);
   const [mounted, setMounted] = useState(true);
+  const [artworkReady, setArtworkReady] = useState(false);
   const startedAt = useRef(performance.now());
-  const ready = sceneReady && !active && (total === 0 || loaded >= total);
+  const ready = artworkReady && sceneReady && !active && (total === 0 || loaded >= total);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => setArtworkReady(true);
+    image.onerror = () => setArtworkReady(true);
+    image.src = '/assets/loading/panelki-loading-bg.webp';
+    if (image.complete) setArtworkReady(true);
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => setStaged(value => {
@@ -29,10 +38,10 @@ export function LoadingScreen({ sceneReady }: { sceneReady: boolean }) {
   useEffect(() => {
     if (!ready) return;
     const minimumRemaining = Math.max(0, 1800 - (performance.now() - startedAt.current));
-    const leaveTimer = window.setTimeout(() => setLeaving(true), minimumRemaining);
+    const leaveTimer = window.setTimeout(() => { onReveal(); setLeaving(true); }, minimumRemaining);
     const unmountTimer = window.setTimeout(() => setMounted(false), minimumRemaining + 650);
     return () => { window.clearTimeout(leaveTimer); window.clearTimeout(unmountTimer); };
-  }, [ready]);
+  }, [onReveal, ready]);
 
   const displayProgress = useMemo(() => {
     if (ready) return 100;

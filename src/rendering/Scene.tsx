@@ -251,13 +251,50 @@ function IndustrialEnvironment() {
   return <primitive object={model} position={[0, TERRAIN_GROUND_Y, 0]} />;
 }
 
+function ChernobylStationLandmark() {
+  const source = useGLTF('/assets/environment/factory-dusk/chernobyl-station.glb').scene;
+  const model = useMemo(() => {
+    const clone = source.clone(true);
+    clone.traverse((object: Object3D) => {
+      if ('castShadow' in object) {
+        (object as any).castShadow = true;
+        (object as any).receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [source]);
+  return <primitive object={model} position={[-1.5, TERRAIN_GROUND_Y, -12.5]} rotation={[0, -.06, 0]} scale={.82} />;
+}
+
+function FactoryDuskVignette() {
+  const kioskSource = useGLTF('/assets/environment/factory-dusk/coffee-kiosk.glb').scene;
+  const suvSource = useGLTF('/assets/environment/factory-dusk/luxury-suv.glb').scene;
+  const [kiosk, suv] = useMemo(() => {
+    const prepare = (source: Object3D) => {
+      const clone = source.clone(true);
+      clone.traverse((object: Object3D) => {
+        if ('castShadow' in object) {
+          (object as any).castShadow = true;
+          (object as any).receiveShadow = true;
+        }
+      });
+      return clone;
+    };
+    return [prepare(kioskSource), prepare(suvSource)];
+  }, [kioskSource, suvSource]);
+  return <group position={[0, TERRAIN_GROUND_Y, 0]}>
+    <primitive object={kiosk} position={[-7.2, 0, .8]} rotation={[0, .16, 0]} />
+    <primitive object={suv} position={[-3.75, 0, 1.65]} rotation={[0, -.12, 0]} />
+  </group>;
+}
+
 export function GameScene({ snap, onViewBasis, showRotationHint, onDismissRotationHint, theme, onReady }: { snap: Snapshot; onViewBasis: Basis; showRotationHint: boolean; onDismissRotationHint: () => void; theme: 'courtyard' | 'industrial'; onReady: () => void }) {
   const industrial = theme === 'industrial';
   const mobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
   return <Canvas shadows dpr={mobile ? [1, 1.25] : [1, 1.65]} camera={{ position: [14, 14, 20], fov: 35 }} gl={{ antialias: true, powerPreference: 'high-performance' }}>
     <color attach="background" args={[industrial ? '#111619' : '#171b1d']} /><fog attach="fog" args={[industrial ? '#1b2225' : '#242726', industrial ? 18 : 20, industrial ? 43 : 48]} /><ambientLight intensity={industrial ? .3 : .32} color={industrial ? '#b8c5cb' : '#ffffff'} />
     <directionalLight castShadow position={[-8, 14, 7]} intensity={industrial ? 1.35 : 1.65} color={industrial ? '#aabac1' : '#ffc18b'} shadow-mapSize={[1024, 1024]} /><pointLight position={[5, 5, -2]} intensity={industrial ? 12 : 18} color={industrial ? '#d08b45' : '#87a5bf'} />
-    <Stars radius={50} depth={20} count={industrial ? 42 : 100} factor={1.1} fade speed={.12} /><Terrain industrial={industrial} />{industrial ? <IndustrialEnvironment /> : <><Neighbourhood /><EnvironmentDetails clearPulse={snap.clearPulse} /></>}<Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />
+    <Stars radius={50} depth={20} count={industrial ? 42 : 100} factor={1.1} fade speed={.12} /><Terrain industrial={industrial} />{industrial ? <><IndustrialEnvironment /><ChernobylStationLandmark /><FactoryDuskVignette /></> : <><Neighbourhood /><EnvironmentDetails clearPulse={snap.clearPulse} /></>}<Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />
     {showRotationHint && <RotationHint snap={snap} onDismiss={onDismissRotationHint} />}<SceneReady onReady={onReady} /><ContactShadows position={[0, -.7, 0]} opacity={.65} scale={30} blur={2.5} /><OrbitControls makeDefault target={[0, mobile ? 3.7 : 5, 0]} minDistance={11} maxDistance={34} minPolarAngle={Math.PI * .18} maxPolarAngle={Math.PI * .48} enablePan={false} rotateSpeed={.65} zoomSpeed={.8} />
     <EffectComposer multisampling={0}><N8AO aoRadius={1.15} intensity={.95} /><Bloom luminanceThreshold={.86} intensity={.16} mipmapBlur /><Vignette eskil={false} offset={.25} darkness={.42} /></EffectComposer>
   </Canvas>;
