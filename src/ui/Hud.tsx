@@ -15,8 +15,8 @@ export function Hud({ snap, onPause, onRestart }: { snap: Snapshot; onPause: () 
   </>;
 }
 
-export function StageSelector({ stage, onChange }: { stage: Stage; onChange: (stage: Stage) => void }) {
-  return <div className="stage-field"><span className="stage-field__label">Stage</span><nav className="stage-selector" aria-label="Choose environment"><button className={stage === 'courtyard' ? 'is-active' : ''} aria-pressed={stage === 'courtyard'} onClick={() => onChange('courtyard')}>Courtyard</button><button className={stage === 'industrial' ? 'is-active' : ''} aria-pressed={stage === 'industrial'} onClick={() => onChange('industrial')}>Factory Dusk</button></nav></div>;
+export function StageSelector({ stage, onChange, disabled = false }: { stage: Stage; onChange: (stage: Stage) => void; disabled?: boolean }) {
+  return <div className={`stage-field${disabled ? ' is-switching' : ''}`}><span className="stage-field__label">Stage</span><nav className="stage-selector" aria-label="Choose environment" aria-busy={disabled}><button disabled={disabled} className={stage === 'courtyard' ? 'is-active' : ''} aria-pressed={stage === 'courtyard'} onClick={() => onChange('courtyard')}>Courtyard</button><button disabled={disabled} className={stage === 'industrial' ? 'is-active' : ''} aria-pressed={stage === 'industrial'} onClick={() => onChange('industrial')}>Factory Dusk</button></nav></div>;
 }
 
 export function TouchControls({ act }: { act: (a: string) => void }) {
@@ -25,10 +25,10 @@ export function TouchControls({ act }: { act: (a: string) => void }) {
 
 type OverlayProps = {
   phase: Snapshot['phase']; onStart: () => void; onRestart: () => void; stage: Stage;
-  onStageChange: (stage: Stage) => void; onStageRestart: (stage: Stage) => void;
+  stageTransitioning: boolean; onStageChange: (stage: Stage) => void; onStageRestart: (stage: Stage) => void;
 };
 
-export function Overlay({ phase, onStart, onRestart, stage, onStageChange, onStageRestart }: OverlayProps) {
+export function Overlay({ phase, onStart, onRestart, stage, stageTransitioning, onStageChange, onStageRestart }: OverlayProps) {
   const [view, setView] = useState<'main' | 'stage'>('main');
   const [pendingStage, setPendingStage] = useState<Stage>(stage);
   useEffect(() => { if (phase !== 'paused') setView('main'); setPendingStage(stage); }, [phase, stage]);
@@ -49,9 +49,9 @@ export function Overlay({ phase, onStart, onRestart, stage, onStageChange, onSta
     <p className="stamp">Panelki neighbourhood plan</p>
     <h2>{phase === 'title' ? 'A brighter block starts here.' : isPaused ? 'Take a little break.' : 'Your district is full.'}</h2>
     <p>{phase === 'title' ? 'Stack homes, clear layers, and make room for one more neighbour.' : phase === 'gameover' ? 'Good planning. Start a fresh neighbourhood whenever you are ready.' : 'Everything will stay exactly where you left it.'}</p>
-    {phase === 'title' && <StageSelector stage={stage} onChange={onStageChange} />}
+    {phase === 'title' && <StageSelector stage={stage} onChange={onStageChange} disabled={stageTransitioning} />}
     <button onClick={onStart}>{isPaused ? 'Continue' : phase === 'gameover' ? 'Start again' : 'Start building'}</button>
     {isPaused && <div className="overlay__secondary-actions"><button className="quiet" onClick={onRestart}>Restart run</button><button className="quiet" onClick={() => setView('stage')}>Change stage</button></div>}
-    <div className="keys"><span><kbd>Arrows</kbd> move · <kbd>X Y Z</kbd> rotate · <kbd>Drag / scroll</kbd> view</span></div>
+    {phase !== 'title' && <div className="keys"><span><kbd>Arrows</kbd> move · <kbd>X Y Z</kbd> rotate · <kbd>Drag / scroll</kbd> view</span></div>}
   </section>;
 }

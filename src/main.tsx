@@ -11,40 +11,37 @@ import './edge-ui.css';
 function App() {
   const game = useMemo(() => new Game(), []);
   const launch = useMemo(() => new URLSearchParams(window.location.search), []);
-  const theme = launch.get('theme') === 'industrial' ? 'industrial' as const : 'courtyard' as const;
-  const restartIntoStage = launch.get('restart') === '1';
+  const [theme, setTheme] = useState<Stage>(launch.get('theme') === 'industrial' ? 'industrial' : 'courtyard');
   const snap = useSyncExternalStore(game.subscribe, game.snapshot);
   const [rotationHintDismissed, setRotationHintDismissed] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const [gameVisible, setGameVisible] = useState(false);
-  const didStartStageRestart = useRef(false);
+  const [stageTransitioning, setStageTransitioning] = useState(false);
+  const stageTimers = useRef<number[]>([]);
   const dismissRotationHint = useCallback(() => setRotationHintDismissed(true), []);
   const markSceneReady = useCallback(() => setSceneReady(true), []);
-  const revealGame = useCallback(() => {
-    // A confirmed stage change recreates the Game before the scene is exposed.
-    if (restartIntoStage && !didStartStageRestart.current) {
-      didStartStageRestart.current = true;
-      game.start();
-    }
-    setGameVisible(true);
-  }, [game, restartIntoStage]);
-  const changeStage = useCallback((next: Stage) => {
+  const revealGame = useCallback(() => setGameVisible(true), []);
+  const syncStageToUrl = useCallback((next: Stage) => {
     const url = new URL(window.location.href);
     if (next === 'industrial') url.searchParams.set('theme', 'industrial'); else url.searchParams.delete('theme');
-    window.location.assign(url);
-  }, []);
-  const restartInStage = useCallback((next: Stage) => {
-    const url = new URL(window.location.href);
-    if (next === 'industrial') url.searchParams.set('theme', 'industrial'); else url.searchParams.delete('theme');
-    url.searchParams.set('restart', '1');
-    window.location.assign(url);
-  }, []);
-  useEffect(() => {
-    if (!gameVisible || !restartIntoStage) return;
-    const url = new URL(window.location.href);
     url.searchParams.delete('restart');
     window.history.replaceState({}, '', url);
-  }, [gameVisible, restartIntoStage]);
+  }, []);
+  const changeStage = useCallback((next: Stage) => {
+    if (next === theme || stageTransitioning) return;
+    // Keep the current world visible, veil it briefly, then reveal the already-cached alternative.
+    setStageTransitioning(true);
+    stageTimers.current.push(window.setTimeout(() => { setTheme(next); syncStageToUrl(next); }, 145));
+    stageTimers.current.push(window.setTimeout(() => setStageTransitioning(false), 365));
+  }, [stageTransitioning, syncStageToUrl, theme]);
+  const restartInStage = useCallback((next: Stage) => {
+    setTheme(next);
+    syncStageToUrl(next);
+    game.restart();
+  }, [game, syncStageToUrl]);
+  useEffect(() => {
+    return () => stageTimers.current.forEach(window.clearTimeout);
+  }, []);
   const view = useRef({ forward: [0, -1] as [number, number], right: [1, 0] as [number, number] });
   const onViewBasis = useCallback((forward: [number, number], right: [number, number]) => { view.current = { forward, right }; }, []);
   const act = useCallback((action: string) => {
@@ -84,7 +81,7 @@ function App() {
     addEventListener('pointermove', onMove, { passive: true }); return () => { removeEventListener('pointermove', onMove); clearTimeout(timer); document.body.classList.remove('edge-active'); };
   }, []);
   const start = () => snap.phase === 'paused' ? game.togglePause() : game.start();
-  return <main className={`phase-${snap.phase} theme-${theme}`}><div className={`game-surface${gameVisible?' is-visible':''}`} aria-hidden={!gameVisible}><GameScene snap={snap} onViewBasis={onViewBasis} showRotationHint={gameVisible&&snap.phase === 'playing' && !rotationHintDismissed} onDismissRotationHint={dismissRotationHint} theme={theme} onReady={markSceneReady} /></div>{gameVisible&&<><div className="grain" /><Hud snap={snap} onPause={() => act('pause')} onRestart={() => act('restart')} />{snap.phase!=='title'&&<div className="caption"><span>5 × 4 × 12</span><p>Drag to orbit · Scroll to zoom<br />Arrows follow the camera.</p></div>}<TouchControls act={act} /><Overlay phase={snap.phase} onStart={start} onRestart={() => act('restart')} stage={theme} onStageChange={changeStage} onStageRestart={restartInStage} /></>}<LoadingScreen sceneReady={sceneReady} onReveal={revealGame} /></main>;
+  return <main className={`phase-${snap.phase} theme-${theme}`}><div className={`game-surface${gameVisible?' is-visible':''}`} aria-hidden={!gameVisible}><GameScene snap={snap} onViewBasis={onViewBasis} showRotationHint={gameVisible&&snap.phase === 'playing' && !rotationHintDismissed} onDismissRotationHint={dismissRotationHint} theme={theme} onReady={markSceneReady} /></div>{gameVisible&&<><div className={`stage-preview-fade${stageTransitioning ? ' is-active' : ''}`} /><div className="grain" /><Hud snap={snap} onPause={() => act('pause')} onRestart={() => act('restart')} />{snap.phase!=='title'&&<div className="caption"><span>5 × 4 × 12</span><p>Drag to orbit · Scroll to zoom<br />Arrows follow the camera.</p></div>}<TouchControls act={act} /><Overlay phase={snap.phase} onStart={start} onRestart={() => act('restart')} stage={theme} stageTransitioning={stageTransitioning} onStageChange={changeStage} onStageRestart={restartInStage} /></>}<LoadingScreen sceneReady={sceneReady} onReveal={revealGame} /></main>;
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);

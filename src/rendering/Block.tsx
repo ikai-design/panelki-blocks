@@ -2,6 +2,8 @@ import {useGLTF} from '@react-three/drei';import {useMemo} from 'react';import {
 
 const ASSETS=['khrushchovka','yugoslav-slab','courtyard','five-story','brutalist'];
 
+ASSETS.forEach((asset)=>useGLTF.preload(`/assets/buildings/${asset}.glb`));
+
 export function Block({kind,position,ghost=false}:{kind:number;position:[number,number,number];ghost?:boolean}){
   const {scene}=useGLTF(`/assets/buildings/${ASSETS[kind]}.glb`);
   const {model,visualScaleY,visualOffsetY}=useMemo(()=>{

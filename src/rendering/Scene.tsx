@@ -9,6 +9,18 @@ import { BLOCK_HEIGHT, CONFIG } from '../game/config';
 import type { Snapshot } from '../game/types';
 import { Block } from './Block';
 
+// Preload both visual districts during the initial loading screen. Drei caches GLTFs,
+// so changing the title-card selection never triggers another request or app reload.
+[
+  '/assets/buildings/khrushchyovka-textured-v1.glb',
+  '/assets/environment/dead-tree.glb',
+  '/assets/environment/playground.glb',
+  '/assets/environment/factory-dusk.glb',
+  '/assets/environment/factory-dusk/chernobyl-station.glb',
+  '/assets/environment/factory-dusk/coffee-kiosk.glb',
+  '/assets/environment/factory-dusk/luxury-suv.glb',
+].forEach((asset) => useGLTF.preload(asset));
+
 type Basis = (forward: [number, number], right: [number, number]) => void;
 const TERRAIN_GROUND_Y = -1.04;
 // The field mesh top is 0.02 below its group origin, so this keeps it flush with terrain.
@@ -286,9 +298,10 @@ function FactoryDuskVignette() {
     return [prepare(kioskSource), prepare(suvSource)];
   }, [kioskSource, suvSource]);
   return <group position={[0, TERRAIN_GROUND_Y, 0]}>
-    {/* Both models sit outside PLAYFIELD_SCENERY_BUFFER, while their pairing stays intact. */}
-    <primitive object={kiosk} position={[PLAYFIELD_SCENERY_BUFFER.minX - 5.85, 0, PLAYFIELD_SCENERY_BUFFER.maxZ - .45]} rotation={[0, .16, 0]} />
-    <primitive object={suv} position={[PLAYFIELD_SCENERY_BUFFER.minX - 2.4, 0, PLAYFIELD_SCENERY_BUFFER.maxZ + .4]} rotation={[0, -.12, 0]} />
+    {/* The left perimeter is visible from the default desktop camera and remains outside
+        the construction buffer. The SUV is parked diagonally in front with clear air. */}
+    <primitive object={kiosk} position={[PLAYFIELD_SCENERY_BUFFER.minX - 1.75, 0, 1.8]} rotation={[0, .16, 0]} />
+    <primitive object={suv} position={[PLAYFIELD_SCENERY_BUFFER.minX - 2.3, 0, 5.4]} rotation={[0, -.12, 0]} />
   </group>;
 }
 
@@ -298,7 +311,11 @@ export function GameScene({ snap, onViewBasis, showRotationHint, onDismissRotati
   return <Canvas shadows dpr={mobile ? [1, 1.25] : [1, 1.65]} camera={{ position: [14, 14, 20], fov: 35 }} gl={{ antialias: true, powerPreference: 'high-performance' }}>
     <color attach="background" args={[industrial ? '#111619' : '#171b1d']} /><fog attach="fog" args={[industrial ? '#1b2225' : '#242726', industrial ? 18 : 20, industrial ? 43 : 48]} /><ambientLight intensity={industrial ? .3 : .32} color={industrial ? '#b8c5cb' : '#ffffff'} />
     <directionalLight castShadow position={[-8, 14, 7]} intensity={industrial ? 1.35 : 1.65} color={industrial ? '#aabac1' : '#ffc18b'} shadow-mapSize={[1024, 1024]} /><pointLight position={[5, 5, -2]} intensity={industrial ? 12 : 18} color={industrial ? '#d08b45' : '#87a5bf'} />
-    <Stars radius={50} depth={20} count={industrial ? 42 : 100} factor={1.1} fade speed={.12} /><Terrain industrial={industrial} />{industrial ? <><IndustrialEnvironment /><ChernobylStationLandmark /><FactoryDuskVignette /></> : <><Neighbourhood /><EnvironmentDetails clearPulse={snap.clearPulse} /></>}<Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />
+    <Stars radius={50} depth={20} count={industrial ? 42 : 100} factor={1.1} fade speed={.12} />
+    {/* Both districts stay mounted after the first load; only one is rendered at a time. */}
+    <group visible={!industrial}><Terrain /><Neighbourhood /><EnvironmentDetails clearPulse={snap.clearPulse} /></group>
+    <group visible={industrial}><Terrain industrial /><IndustrialEnvironment /><ChernobylStationLandmark /><FactoryDuskVignette /></group>
+    <Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />
     {showRotationHint && <RotationHint snap={snap} onDismiss={onDismissRotationHint} />}<SceneReady onReady={onReady} /><ContactShadows position={[0, -.7, 0]} opacity={.65} scale={30} blur={2.5} /><OrbitControls makeDefault target={[0, mobile ? 3.7 : 5, 0]} minDistance={11} maxDistance={34} minPolarAngle={Math.PI * .18} maxPolarAngle={Math.PI * .48} enablePan={false} rotateSpeed={.65} zoomSpeed={.8} />
     <EffectComposer multisampling={0}><N8AO aoRadius={1.15} intensity={.95} /><Bloom luminanceThreshold={.86} intensity={.16} mipmapBlur /><Vignette eskil={false} offset={.25} darkness={.42} /></EffectComposer>
   </Canvas>;

@@ -34,8 +34,8 @@ function MiniPiece({ piece, index, settled, falling }: { piece: typeof PIECES[nu
 function MiniStack({ progress, completed }: { progress: number; completed: boolean }) {
   const settledCount = completed ? PIECES.length : Math.min(PIECES.length - 1, Math.floor(progress / 20));
   return <div className={`mini-stack${completed ? ' is-complete' : ''}`} aria-hidden="true">
-    <svg viewBox="0 0 300 170" role="presentation">
-      <g className="mini-stack__field"><path d="M36 133 148 88l116 45-114 34Z" /><path d="m60 132 91-34 89 34M101 149l50-51 53 50M151 98v57" /></g>
+    <svg viewBox="0 0 260 160" role="presentation">
+      <ellipse className="mini-stack__ground" cx="130" cy="139" rx="67" ry="10" />
       {PIECES.map((piece, index) => <MiniPiece key={piece.tone} piece={piece} index={index} settled={completed || index < settledCount} falling={!completed && index === settledCount} />)}
     </svg>
   </div>;
@@ -50,6 +50,7 @@ export function LoadingScreen({ sceneReady, onReveal }: { sceneReady: boolean; o
   const [completedStack, setCompletedStack] = useState(false);
   const startedAt = useRef(performance.now());
   const ready = artworkReady && sceneReady && !active && (total === 0 || loaded >= total);
+  const presentationReady = ready && staged >= 92;
 
   useEffect(() => {
     const image = new Image();
@@ -62,28 +63,29 @@ export function LoadingScreen({ sceneReady, onReveal }: { sceneReady: boolean; o
   useEffect(() => {
     const id = window.setInterval(() => setStaged(value => {
       if (value >= 92) return value;
-      const increment = value < 45 ? 3.4 : value < 74 ? 1.7 : .65;
-      return Math.min(92, value + increment);
-    }), 120);
+      // Five slow milestones give every miniature building time to land before the next appears.
+      const elapsed = performance.now() - startedAt.current;
+      return Math.min(92, 4 + elapsed / 5600 * 88);
+    }), 80);
     return () => window.clearInterval(id);
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!presentationReady) return;
     // Let the last mini building settle, then hold the finished skyline briefly before reveal.
-    const minimumRemaining = Math.max(0, 1800 - (performance.now() - startedAt.current));
-    const finishDelay = Math.max(minimumRemaining, 620);
-    const completeTimer = window.setTimeout(() => setCompletedStack(true), Math.max(0, finishDelay - 210));
-    const leaveTimer = window.setTimeout(() => { onReveal(); setLeaving(true); }, finishDelay);
-    const unmountTimer = window.setTimeout(() => setMounted(false), finishDelay + 360);
+    const completeTimer = window.setTimeout(() => setCompletedStack(true), 90);
+    const leaveTimer = window.setTimeout(() => { onReveal(); setLeaving(true); }, 470);
+    const unmountTimer = window.setTimeout(() => setMounted(false), 820);
     return () => { window.clearTimeout(completeTimer); window.clearTimeout(leaveTimer); window.clearTimeout(unmountTimer); };
-  }, [onReveal, ready]);
+  }, [onReveal, presentationReady]);
 
   const displayProgress = useMemo(() => {
-    if (ready) return 100;
+    if (presentationReady) return 100;
     const real = total > 0 ? assetProgress : 0;
-    return Math.round(Math.min(94, Math.max(staged, real)));
-  }, [assetProgress, ready, staged, total]);
+    // Asset loading can complete in a single browser tick. Allow it to lead slightly,
+    // but never enough to skip a building's landing animation.
+    return Math.round(Math.min(94, Math.max(staged, Math.min(real, staged + 7))));
+  }, [assetProgress, presentationReady, staged, total]);
 
   if (!mounted) return null;
   return <section className={`loading-screen${leaving ? ' is-leaving' : ''}`} aria-label="Loading Panelki Blocks" aria-busy={!ready}>
