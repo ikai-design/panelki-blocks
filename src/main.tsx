@@ -11,7 +11,7 @@ import './edge-ui.css';
 function App() {
   const game = useMemo(() => new Game(), []);
   const launch = useMemo(() => new URLSearchParams(window.location.search), []);
-  const [theme, setTheme] = useState<Stage>(launch.get('theme') === 'industrial' ? 'industrial' : 'courtyard');
+  const [theme, setTheme] = useState<Stage>(launch.get('theme') === 'industrial' ? 'industrial' : launch.get('theme') === 'sanatorium' ? 'sanatorium' : 'courtyard');
   const snap = useSyncExternalStore(game.subscribe, game.snapshot);
   const [rotationHintDismissed, setRotationHintDismissed] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
@@ -23,7 +23,7 @@ function App() {
   const revealGame = useCallback(() => setGameVisible(true), []);
   const syncStageToUrl = useCallback((next: Stage) => {
     const url = new URL(window.location.href);
-    if (next === 'industrial') url.searchParams.set('theme', 'industrial'); else url.searchParams.delete('theme');
+    if (next === 'courtyard') url.searchParams.delete('theme'); else url.searchParams.set('theme', next);
     url.searchParams.delete('restart');
     window.history.replaceState({}, '', url);
   }, []);
@@ -74,7 +74,6 @@ function App() {
     addEventListener('keydown', onKey); return () => removeEventListener('keydown', onKey);
   }, [act]);
   useEffect(() => { if (snap.phase !== 'playing') return; const id = setInterval(() => game.tick(), game.interval * 1000); return () => clearInterval(id); }, [game, snap.phase, snap.level]);
-  useEffect(() => { if (snap.clearPulse) { document.body.classList.add('cleared'); setTimeout(() => document.body.classList.remove('cleared'), 350); } }, [snap.clearPulse]);
   useEffect(() => {
     let timer = 0; const edge = 150;
     const onMove = (e: PointerEvent) => { const near = e.clientX < edge || e.clientX > innerWidth - edge || e.clientY < edge || e.clientY > innerHeight - edge; document.body.classList.toggle('edge-active', near); clearTimeout(timer); if (near) timer = window.setTimeout(() => document.body.classList.remove('edge-active'), 1400); };

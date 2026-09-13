@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NAMES } from '../game/config';
 import type { Snapshot } from '../game/types';
 
-export type Stage = 'courtyard' | 'industrial';
+export type Stage = 'courtyard' | 'industrial' | 'sanatorium';
 
 export function Hud({ snap, onPause, onRestart }: { snap: Snapshot; onPause: () => void; onRestart: () => void }) {
   const preStart = snap.phase === 'title';
@@ -11,12 +11,12 @@ export function Hud({ snap, onPause, onRestart }: { snap: Snapshot; onPause: () 
       <header className="brand"><span className="brand__mark">PN</span><div><h1>Panelki Blocks</h1><p>Build a kinder skyline.</p></div></header>
       {!preStart && <aside className="stats"><div className="score"><span>Score</span><strong>{String(snap.score).padStart(6, '0')}</strong></div><div className="pair"><p><span>Level</span><b>{String(snap.level).padStart(2, '0')}</b></p><p><span>Layers</span><b>{String(snap.layers).padStart(2, '0')}</b></p></div><div className="next"><div className="next__copy"><span>Up next</span><strong>{NAMES[snap.nextKind]}</strong></div><i /></div></aside>}
     </div>
-    {!preStart && <nav className="actions"><button onClick={onPause}>{snap.phase === 'paused' ? 'Resume' : 'Pause'} <kbd>P</kbd></button><button className="quiet" onClick={onRestart}>Restart <kbd>R</kbd></button></nav>}
+    {!preStart && snap.phase !== 'clearing' && <nav className="actions"><button onClick={onPause}>{snap.phase === 'paused' ? 'Resume' : 'Pause'} <kbd>P</kbd></button><button className="quiet" onClick={onRestart}>Restart <kbd>R</kbd></button></nav>}
   </>;
 }
 
 export function StageSelector({ stage, onChange, disabled = false }: { stage: Stage; onChange: (stage: Stage) => void; disabled?: boolean }) {
-  return <div className={`stage-field${disabled ? ' is-switching' : ''}`}><span className="stage-field__label">Stage</span><nav className="stage-selector" aria-label="Choose environment" aria-busy={disabled}><button disabled={disabled} className={stage === 'courtyard' ? 'is-active' : ''} aria-pressed={stage === 'courtyard'} onClick={() => onChange('courtyard')}>Courtyard</button><button disabled={disabled} className={stage === 'industrial' ? 'is-active' : ''} aria-pressed={stage === 'industrial'} onClick={() => onChange('industrial')}>Factory Dusk</button></nav></div>;
+  return <div className={`stage-field${disabled ? ' is-switching' : ''}`}><span className="stage-field__label">Stage</span><nav className="stage-selector" aria-label="Choose environment" aria-busy={disabled}><button disabled={disabled} className={stage === 'courtyard' ? 'is-active' : ''} aria-pressed={stage === 'courtyard'} onClick={() => onChange('courtyard')}>Courtyard</button><button disabled={disabled} className={stage === 'industrial' ? 'is-active' : ''} aria-pressed={stage === 'industrial'} onClick={() => onChange('industrial')}>Factory Dusk</button><button disabled={disabled} className={stage === 'sanatorium' ? 'is-active' : ''} aria-pressed={stage === 'sanatorium'} onClick={() => onChange('sanatorium')}>Sanatorium</button></nav></div>;
 }
 
 export function TouchControls({ act }: { act: (a: string) => void }) {
@@ -32,10 +32,10 @@ export function Overlay({ phase, onStart, onRestart, stage, stageTransitioning, 
   const [view, setView] = useState<'main' | 'stage'>('main');
   const [pendingStage, setPendingStage] = useState<Stage>(stage);
   useEffect(() => { if (phase !== 'paused') setView('main'); setPendingStage(stage); }, [phase, stage]);
-  if (phase === 'playing') return null;
+  if (phase === 'playing' || phase === 'clearing') return null;
 
   if (phase === 'paused' && view === 'stage') {
-    const stageName = pendingStage === 'industrial' ? 'Factory Dusk' : 'Courtyard';
+    const stageName = pendingStage === 'industrial' ? 'Factory Dusk' : pendingStage === 'sanatorium' ? 'Sanatorium' : 'Courtyard';
     return <section className="overlay overlay--paused overlay--stage-change">
       <p className="stamp">Change stage</p><h2>Choose a district.</h2>
       <p>Changing stage will restart your current run.</p>

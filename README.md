@@ -11,7 +11,7 @@ npm run dev
 
 Open the local URL printed by Vite. Create a production build with `npm run build`, then inspect it with `npm run preview`.
 
-The default URL renders the residential courtyard. Append `?theme=industrial` to render the alternative **Factory Dusk** environment with the same gameplay, camera and UI.
+The default URL renders the residential courtyard. Choose **Factory Dusk** or **Sanatorium** on the title card, or use `?theme=industrial` / `?theme=sanatorium` for a direct link. All three stages use the same gameplay, camera and UI.
 
 ## Controls
 
@@ -36,6 +36,7 @@ Touch controls appear on narrow screens. The game is intentionally silent and co
 - `public/assets/buildings/` — five standalone GLB façade modules, 252 KB total.
 - `scripts/export_assets.py` — repeatable Blender-to-GLB export.
 - `Panelki Blocks.blend` — editable source models and the original Blender prototype.
+- `blender/off-season-sanatorium.blend` — editable source for the third environment kit.
 
 The five fictional building families are Khrushchovka tower, Yugoslav slab, courtyard block, five-story prefab and brutalist high-rise. Each GLB uses reusable geometry and embedded materials for concrete panels, windows, lit rooms, curtains, balcony bands, plants, AC units and roof objects. Gameplay collision remains an integer cell, so façade detail never changes the rules.
 
@@ -49,6 +50,7 @@ The ground is generated procedurally in the browser from a seeded canvas texture
 npm run export-assets
 npm run build-environment
 npm run build-industrial-theme
+npm run build-sanatorium-theme
 ```
 
 This expects Blender at `/Applications/Blender.app`; set `BLENDER_BIN` to another executable when needed. The web build has no Blender runtime dependency.
@@ -56,6 +58,8 @@ This expects Blender at `/Applications/Blender.app`; set `BLENDER_BIN` to anothe
 `build-environment` procedurally models and exports the dead tree and abandoned playground GLBs. The playground includes a sandbox, climbing frame, slide, swing and half-buried tire.
 
 `build-industrial-theme` uses Blender to rebuild the separate Factory Dusk GLB: asphalt apron, sparse chain-link fence, service warehouse, transformer cabinet, exposed conduits, two industrial lamps, weeds and one distant smokestack.
+
+`build-sanatorium-theme` rebuilds five small GLBs for **Off-Season Sanatorium**: a low modernist wellness building, a drained outdoor pool, recreation furniture, one lonely open parasol and sparse planting. The stage sits outside the construction buffer and reuses the same falling-block rules.
 
 ## Test
 

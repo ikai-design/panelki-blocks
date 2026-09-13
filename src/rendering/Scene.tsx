@@ -8,6 +8,7 @@ import type { Group } from 'three';
 import { BLOCK_HEIGHT, CONFIG } from '../game/config';
 import type { Snapshot } from '../game/types';
 import { Block } from './Block';
+import type { Stage } from '../ui/Hud';
 
 // Preload both visual districts during the initial loading screen. Drei caches GLTFs,
 // so changing the title-card selection never triggers another request or app reload.
@@ -19,6 +20,11 @@ import { Block } from './Block';
   '/assets/environment/factory-dusk/chernobyl-station.glb',
   '/assets/environment/factory-dusk/coffee-kiosk.glb',
   '/assets/environment/factory-dusk/luxury-suv.glb',
+  '/assets/environment/off-season-sanatorium/sanatorium-main.glb',
+  '/assets/environment/off-season-sanatorium/empty-pool.glb',
+  '/assets/environment/off-season-sanatorium/recreation.glb',
+  '/assets/environment/off-season-sanatorium/lonely-parasol.glb',
+  '/assets/environment/off-season-sanatorium/planting.glb',
 ].forEach((asset) => useGLTF.preload(asset));
 
 type Basis = (forward: [number, number], right: [number, number]) => void;
@@ -47,36 +53,36 @@ const windNoise = (t: number) => {
   return windHash(i) * (1 - eased) + windHash(i + 1) * eased;
 };
 
-function Terrain({ industrial = false }: { industrial?: boolean }) {
+function Terrain({ industrial = false, sanatorium = false }: { industrial?: boolean; sanatorium?: boolean }) {
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = 512;
     const c = canvas.getContext('2d')!;
-    c.fillStyle = industrial ? '#272b2c' : '#40382b'; c.fillRect(0, 0, 512, 512);
+    c.fillStyle = industrial ? '#272b2c' : sanatorium ? '#414844' : '#40382b'; c.fillRect(0, 0, 512, 512);
     let seed = 918273;
     const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-    const tones = industrial ? ['#313638', '#1d2021', '#41403b', '#282b2b'] : ['#574936', '#6b583c', '#302d25', '#82704a', '#49402f'];
-    for (let i = 0; i < (industrial ? 420 : 1200); i++) {
+    const tones = industrial ? ['#313638', '#1d2021', '#41403b', '#282b2b'] : sanatorium ? ['#58605a', '#363d3a', '#4b514b', '#64655a'] : ['#574936', '#6b583c', '#302d25', '#82704a', '#49402f'];
+    for (let i = 0; i < (industrial ? 420 : sanatorium ? 520 : 1200); i++) {
       const x = rnd() * 512, y = rnd() * 512, r = 1 + rnd() * 14;
       c.globalAlpha = .08 + rnd() * .2; c.fillStyle = tones[Math.floor(rnd() * tones.length)];
       c.beginPath(); c.ellipse(x, y, r, r * (.3 + rnd()), rnd() * Math.PI, 0, Math.PI * 2); c.fill();
     }
-    for (let i = 0; i < (industrial ? 28 : 90); i++) {
+    for (let i = 0; i < (industrial ? 28 : sanatorium ? 40 : 90); i++) {
       const x = rnd() * 512, y = rnd() * 512, r = 8 + rnd() * 35;
-      c.globalAlpha = .08 + rnd() * .12; c.fillStyle = industrial ? (rnd() > .45 ? '#111415' : '#554738') : (rnd() > .45 ? '#171813' : '#928050');
+      c.globalAlpha = .08 + rnd() * .12; c.fillStyle = industrial ? (rnd() > .45 ? '#111415' : '#554738') : sanatorium ? (rnd() > .45 ? '#26302e' : '#879084') : (rnd() > .45 ? '#171813' : '#928050');
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
     }
     c.globalAlpha = 1;
     const t = new CanvasTexture(canvas); t.wrapS = t.wrapT = RepeatWrapping; t.repeat.set(3, 3); t.colorSpace = SRGBColorSpace;
     return t;
-  }, [industrial]);
+  }, [industrial, sanatorium]);
   const grass = useMemo(() => {
     let seed = 417; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    return industrial ? [] : Array.from({ length: 85 }, () => ({ x: (rnd() - .5) * 34, z: (rnd() - .5) * 34, s: .12 + rnd() * .28, r: rnd() * Math.PI }));
-  }, [industrial]);
+    return industrial || sanatorium ? [] : Array.from({ length: 85 }, () => ({ x: (rnd() - .5) * 34, z: (rnd() - .5) * 34, s: .12 + rnd() * .28, r: rnd() * Math.PI }));
+  }, [industrial, sanatorium]);
   return <group position={[0, -1.04, 0]}>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[25, 96]} /><meshStandardMaterial map={texture} bumpMap={texture} bumpScale={industrial ? .035 : .16} color={industrial ? '#686867' : '#8a7654'} roughness={1} /></mesh>
-    {!industrial && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .012, 0]} receiveShadow><ringGeometry args={[4.2, 7.5, 48]} /><meshStandardMaterial color="#342f27" roughness={1} transparent opacity={.24} /></mesh>}
+    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow><circleGeometry args={[25, 96]} /><meshStandardMaterial map={texture} bumpMap={texture} bumpScale={industrial ? .035 : sanatorium ? .055 : .16} color={industrial ? '#686867' : sanatorium ? '#8d9189' : '#8a7654'} roughness={1} /></mesh>
+    {!industrial && !sanatorium && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .012, 0]} receiveShadow><ringGeometry args={[4.2, 7.5, 48]} /><meshStandardMaterial color="#342f27" roughness={1} transparent opacity={.24} /></mesh>}
     {grass.map((g, i) => <group key={i} position={[g.x, .04, g.z]} rotation={[0, g.r, 0]} scale={g.s}><mesh rotation={[0, 0, -.18]}><coneGeometry args={[.07, 1.25, 3]} /><meshStandardMaterial color={i % 4 === 0 ? '#29291e' : '#7a6a3d'} roughness={1} /></mesh><mesh position={[.16, 0, .04]} rotation={[0, 0, .24]}><coneGeometry args={[.055, .85, 3]} /><meshStandardMaterial color="#554b2d" roughness={1} /></mesh></group>)}
   </group>;
 }
@@ -110,6 +116,40 @@ function CameraFraming({ mobile }: { mobile: boolean }) {
   return null;
 }
 
+// The visual cells keep their logical grid coordinates; only these temporary parents move.
+function ClearingBlock({ kind, position, removing }: { kind: number; position: [number, number, number]; removing: boolean }) {
+  const group = useRef<Group>(null), elapsed = useRef(0), wasRemoving = useRef(false);
+  const reduced = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
+  useFrame((_, dt) => {
+    if (!group.current) return;
+    if (removing && !wasRemoving.current) { elapsed.current = 0; wasRemoving.current = true; }
+    if (!removing) return;
+    elapsed.current += Math.min(dt, .05);
+    const t = reduced ? 1 : Math.min(1, elapsed.current / .25);
+    const eased = 1 - (1 - t) ** 3;
+    group.current.scale.set(1 - .82 * eased, 1 - .88 * eased, 1 - .82 * eased);
+    group.current.position.y = position[1] - .32 * eased;
+    group.current.visible = t < 1;
+  });
+  return <group ref={group} position={position}>
+    <Block kind={kind} position={[0, 0, 0]} />
+    <mesh><boxGeometry args={[.91, .96, .91]} /><meshBasicMaterial color="#c8a784" transparent opacity={removing ? .32 : .18} depthWrite={false} /></mesh>
+  </group>;
+}
+
+function SettlingBlock({ kind, position, fromZ }: { kind: number; position: [number, number, number]; fromZ: number }) {
+  const group = useRef<Group>(null), elapsed = useRef(0);
+  const reduced = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
+  const verticalDistance = (fromZ - Math.round((position[1] - BLOCK_CELL_CENTER_Y) / BLOCK_HEIGHT)) * BLOCK_HEIGHT;
+  useFrame((_, dt) => {
+    if (!group.current) return;
+    elapsed.current += Math.min(dt, .05);
+    const t = reduced ? 1 : Math.min(1, elapsed.current / .19);
+    group.current.position.y = position[1] + verticalDistance * (1 - t) ** 3;
+  });
+  return <group ref={group} position={[position[0], position[1] + verticalDistance, position[2]]}><Block kind={kind} position={[0, 0, 0]} /></group>;
+}
+
 function Well({ snap, industrial = false }: { snap: Snapshot; industrial?: boolean }) {
   const group = useRef<Group>(null), last = useRef(snap.dropPulse);
   const cx = (CONFIG.width - 1) / 2, cz = (CONFIG.depth - 1) / 2;
@@ -121,10 +161,30 @@ function Well({ snap, industrial = false }: { snap: Snapshot; industrial?: boole
     {Array.from({ length: CONFIG.width + 1 }, (_, i) => <mesh key={`gx${i}`} position={[i - .5, .002, cz]}><boxGeometry args={[.018, .018, CONFIG.depth]} /><meshStandardMaterial color="#414d4a" /></mesh>)}
     {Array.from({ length: CONFIG.depth + 1 }, (_, i) => <mesh key={`gz${i}`} position={[cx, .002, i - .5]}><boxGeometry args={[CONFIG.width, .018, .018]} /><meshStandardMaterial color="#414d4a" /></mesh>)}
     {[[-.5, -.5], [CONFIG.width - .5, -.5], [-.5, CONFIG.depth - .5], [CONFIG.width - .5, CONFIG.depth - .5]].map(([x, z], i) => <mesh key={i} position={[x, CONFIG.height / 2, z]}><boxGeometry args={[.022, CONFIG.height, .022]} /><meshStandardMaterial color="#584b40" emissive="#1c1713" emissiveIntensity={.03} roughness={.9} transparent opacity={.48} /></mesh>)}
+    {snap.nearLayer && <group position={[0, snap.nearLayer.z * BLOCK_HEIGHT + .015, 0]}>
+      {/* A thin perimeter and faint remaining footprints point to one almost-complete plane. */}
+      <mesh position={[(CONFIG.width - 1) / 2, 0, -.48]}><boxGeometry args={[CONFIG.width, .025, .025]} /><meshBasicMaterial color="#b8a794" transparent opacity={.34} depthWrite={false} /></mesh>
+      <mesh position={[(CONFIG.width - 1) / 2, 0, CONFIG.depth - .52]}><boxGeometry args={[CONFIG.width, .025, .025]} /><meshBasicMaterial color="#b8a794" transparent opacity={.34} depthWrite={false} /></mesh>
+      <mesh position={[-.48, 0, (CONFIG.depth - 1) / 2]}><boxGeometry args={[.025, .025, CONFIG.depth]} /><meshBasicMaterial color="#b8a794" transparent opacity={.34} depthWrite={false} /></mesh>
+      <mesh position={[CONFIG.width - .52, 0, (CONFIG.depth - 1) / 2]}><boxGeometry args={[.025, .025, CONFIG.depth]} /><meshBasicMaterial color="#b8a794" transparent opacity={.34} depthWrite={false} /></mesh>
+      {snap.nearLayer.holes.map(([x, y, z]) => <mesh key={`${x}-${y}-${z}`} position={[x, .005, y]}><boxGeometry args={[.81, .015, .81]} /><meshBasicMaterial color="#c3ae90" transparent opacity={.12} depthWrite={false} /></mesh>)}
+    </group>}
+    {snap.clearEvent && snap.clearEvent.stage !== 'collapse' && <group position={[(CONFIG.width - 1) / 2, 0, (CONFIG.depth - 1) / 2]}>
+      {snap.clearEvent.planes.map(z => <mesh key={z} position={[0, z * BLOCK_HEIGHT + .015, 0]}><boxGeometry args={[CONFIG.width, .025, CONFIG.depth]} /><meshBasicMaterial color="#cbb28d" transparent opacity={snap.clearEvent?.stage === 'anticipation' ? .17 : .09} depthWrite={false} /></mesh>)}
+    </group>}
     {/* GLB building modules are centered on their cell; this offset puts their bases on the field surface. */}
     {snap.ghost.map((c, i) => <Block key={`g${i}`} kind={c.kind} position={[c.pos[0], c.pos[2] * BLOCK_HEIGHT + BLOCK_CELL_CENTER_Y, c.pos[1]]} ghost />)}
-    {snap.board.map(c => <Block key={c.pos.join()} kind={c.kind} position={[c.pos[0], c.pos[2] * BLOCK_HEIGHT + BLOCK_CELL_CENTER_Y, c.pos[1]]} />)}
+    {snap.board.map(c => {
+      const position: [number, number, number] = [c.pos[0], c.pos[2] * BLOCK_HEIGHT + BLOCK_CELL_CENTER_Y, c.pos[1]];
+      const event = snap.clearEvent;
+      if (event && event.stage !== 'collapse' && event.planes.includes(c.pos[2])) return <ClearingBlock key={c.pos.join()} kind={c.kind} position={position} removing={event.stage === 'removal'} />;
+      const fromZ = event?.stage === 'collapse' ? event.collapseFrom[c.pos.join()] : undefined;
+      return fromZ === undefined ? <Block key={c.pos.join()} kind={c.kind} position={position} /> : <SettlingBlock key={c.pos.join()} kind={c.kind} position={position} fromZ={fromZ} />;
+    })}
     {snap.active.map((c, i) => <Block key={`a${i}`} kind={c.kind} position={[c.pos[0], c.pos[2] * BLOCK_HEIGHT + BLOCK_CELL_CENTER_Y, c.pos[1]]} />)}
+    {snap.clearReward && <Html center distanceFactor={17} position={[(CONFIG.width - 1) / 2, Math.min(CONFIG.height - .5, snap.clearReward.z * BLOCK_HEIGHT + 1.7), (CONFIG.depth - 1) / 2]} className="clear-reward" zIndexRange={[4, 1]}>
+      <div key={snap.clearReward.id} role="status" aria-live="polite"><span>{snap.clearReward.planes === 1 ? 'Layer clear' : `${snap.clearReward.planes} layers`}</span><strong>+{snap.clearReward.points}</strong></div>
+    </Html>}
   </group>;
 }
 
@@ -305,16 +365,44 @@ function FactoryDuskVignette() {
   </group>;
 }
 
-export function GameScene({ snap, onViewBasis, showRotationHint, onDismissRotationHint, theme, onReady }: { snap: Snapshot; onViewBasis: Basis; showRotationHint: boolean; onDismissRotationHint: () => void; theme: 'courtyard' | 'industrial'; onReady: () => void }) {
+function SanatoriumEnvironment() {
+  const main = useGLTF('/assets/environment/off-season-sanatorium/sanatorium-main.glb').scene;
+  const pool = useGLTF('/assets/environment/off-season-sanatorium/empty-pool.glb').scene;
+  const recreation = useGLTF('/assets/environment/off-season-sanatorium/recreation.glb').scene;
+  const parasol = useGLTF('/assets/environment/off-season-sanatorium/lonely-parasol.glb').scene;
+  const planting = useGLTF('/assets/environment/off-season-sanatorium/planting.glb').scene;
+  const models = useMemo(() => [main, pool, recreation, parasol, planting].map(source => {
+    const clone = source.clone(true);
+    clone.traverse((object: Object3D) => {
+      if ('castShadow' in object) {
+        (object as any).castShadow = true;
+        (object as any).receiveShadow = true;
+      }
+    });
+    return clone;
+  }), [main, pool, recreation, parasol, planting]);
+  return <group position={[0, TERRAIN_GROUND_Y, 0]}>
+    {/* The entrance faces the field from beyond the northern exclusion edge. */}
+    <primitive object={models[0]} position={[0, 0, -12.5]} />
+    <primitive object={models[1]} position={[7.2, 0, -8.5]} rotation={[0, -.18, 0]} />
+    <primitive object={models[2]} position={[-6.5, 0, -6.9]} rotation={[0, -.1, 0]} />
+    <primitive object={models[3]} position={[3.2, 0, -7.4]} />
+    <primitive object={models[4]} position={[-9.5, 0, -9.2]} scale={.9} />
+  </group>;
+}
+
+export function GameScene({ snap, onViewBasis, showRotationHint, onDismissRotationHint, theme, onReady }: { snap: Snapshot; onViewBasis: Basis; showRotationHint: boolean; onDismissRotationHint: () => void; theme: Stage; onReady: () => void }) {
   const industrial = theme === 'industrial';
+  const sanatorium = theme === 'sanatorium';
   const mobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
   return <Canvas shadows dpr={mobile ? [1, 1.25] : [1, 1.65]} camera={{ position: [14, 14, 20], fov: 35 }} gl={{ antialias: true, powerPreference: 'high-performance' }}>
-    <color attach="background" args={[industrial ? '#111619' : '#171b1d']} /><fog attach="fog" args={[industrial ? '#1b2225' : '#242726', industrial ? 18 : 20, industrial ? 43 : 48]} /><ambientLight intensity={industrial ? .3 : .32} color={industrial ? '#b8c5cb' : '#ffffff'} />
-    <directionalLight castShadow position={[-8, 14, 7]} intensity={industrial ? 1.35 : 1.65} color={industrial ? '#aabac1' : '#ffc18b'} shadow-mapSize={[1024, 1024]} /><pointLight position={[5, 5, -2]} intensity={industrial ? 12 : 18} color={industrial ? '#d08b45' : '#87a5bf'} />
-    <Stars radius={50} depth={20} count={industrial ? 42 : 100} factor={1.1} fade speed={.12} />
-    {/* Both districts stay mounted after the first load; only one is rendered at a time. */}
-    <group visible={!industrial}><Terrain /><Neighbourhood /><EnvironmentDetails clearPulse={snap.clearPulse} /></group>
+    <color attach="background" args={[industrial ? '#111619' : sanatorium ? '#303c3f' : '#171b1d']} /><fog attach="fog" args={[industrial ? '#1b2225' : sanatorium ? '#424e4f' : '#242726', sanatorium ? 22 : industrial ? 18 : 20, sanatorium ? 52 : industrial ? 43 : 48]} /><ambientLight intensity={industrial ? .3 : sanatorium ? .62 : .32} color={industrial ? '#b8c5cb' : sanatorium ? '#c7d3d3' : '#ffffff'} />
+    <directionalLight castShadow position={[-8, 14, 7]} intensity={industrial ? 1.35 : sanatorium ? 1.35 : 1.65} color={industrial ? '#aabac1' : sanatorium ? '#cbd6d5' : '#ffc18b'} shadow-mapSize={[1024, 1024]} /><pointLight position={[5, 5, -2]} intensity={industrial ? 12 : sanatorium ? 4 : 18} color={industrial ? '#d08b45' : sanatorium ? '#d0b894' : '#87a5bf'} />
+    <Stars radius={50} depth={20} count={sanatorium ? 12 : industrial ? 42 : 100} factor={1.1} fade speed={.12} />
+    {/* All three districts stay mounted after the first load; only one is rendered. */}
+    <group visible={theme === 'courtyard'}><Terrain /><Neighbourhood /><EnvironmentDetails clearPulse={snap.clearPulse} /></group>
     <group visible={industrial}><Terrain industrial /><IndustrialEnvironment /><ChernobylStationLandmark /><FactoryDuskVignette /></group>
+    <group visible={sanatorium}><Terrain sanatorium /><SanatoriumEnvironment /></group>
     <Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />
     {showRotationHint && <RotationHint snap={snap} onDismiss={onDismissRotationHint} />}<SceneReady onReady={onReady} /><ContactShadows position={[0, -.7, 0]} opacity={.65} scale={30} blur={2.5} /><OrbitControls makeDefault target={[0, mobile ? 3.7 : 5, 0]} minDistance={11} maxDistance={34} minPolarAngle={Math.PI * .18} maxPolarAngle={Math.PI * .48} enablePan={false} rotateSpeed={.65} zoomSpeed={.8} />
     <EffectComposer multisampling={0}><N8AO aoRadius={1.15} intensity={.95} /><Bloom luminanceThreshold={.86} intensity={.16} mipmapBlur /><Vignette eskil={false} offset={.25} darkness={.42} /></EffectComposer>
