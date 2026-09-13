@@ -15,6 +15,9 @@ const TERRAIN_GROUND_Y = -1.04;
 const PLAYFIELD_GROUP_Y = TERRAIN_GROUND_Y + .02;
 // Imported building modules have a -0.499 local Y bound; .48 centers their cell floor on the field.
 const BLOCK_CELL_CENTER_Y = .48;
+// Field footprint is x: -2.5..2.5, z: -2..2. Keep scenery at least 3.75 units clear
+// so its rendered bounds never compete with falling pieces or the construction area.
+const PLAYFIELD_SCENERY_BUFFER = { minX: -6.25, maxX: 6.25, minZ: -5.75, maxZ: 5.75 };
 
 type TrashKind = 'paper' | 'bag' | 'can';
 type TrashParticle = {
@@ -283,8 +286,9 @@ function FactoryDuskVignette() {
     return [prepare(kioskSource), prepare(suvSource)];
   }, [kioskSource, suvSource]);
   return <group position={[0, TERRAIN_GROUND_Y, 0]}>
-    <primitive object={kiosk} position={[-7.2, 0, .8]} rotation={[0, .16, 0]} />
-    <primitive object={suv} position={[-3.75, 0, 1.65]} rotation={[0, -.12, 0]} />
+    {/* Both models sit outside PLAYFIELD_SCENERY_BUFFER, while their pairing stays intact. */}
+    <primitive object={kiosk} position={[PLAYFIELD_SCENERY_BUFFER.minX - 5.85, 0, PLAYFIELD_SCENERY_BUFFER.maxZ - .45]} rotation={[0, .16, 0]} />
+    <primitive object={suv} position={[PLAYFIELD_SCENERY_BUFFER.minX - 2.4, 0, PLAYFIELD_SCENERY_BUFFER.maxZ + .4]} rotation={[0, -.12, 0]} />
   </group>;
 }
 
