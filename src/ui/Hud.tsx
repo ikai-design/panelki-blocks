@@ -5,18 +5,21 @@ import type { Snapshot } from '../game/types';
 export type Stage = 'courtyard' | 'industrial' | 'sanatorium';
 
 export function Hud({ snap, onPause, onRestart }: { snap: Snapshot; onPause: () => void; onRestart: () => void }) {
-  const preStart = snap.phase === 'title';
+  const showBrand = snap.phase === 'title' || snap.phase === 'playing' || snap.phase === 'clearing';
+  const showStats = snap.phase === 'playing' || snap.phase === 'clearing';
+  const showActions = snap.phase === 'playing';
+  if (!showBrand && !showStats) return null;
   return <>
     <div className="hud-topbar">
-      <header className="brand"><span className="brand__mark">PN</span><div><h1>Panelki Blocks</h1><p>Build a kinder skyline.</p></div></header>
-      {!preStart && <aside className="stats"><div className="score"><span>Score</span><strong>{String(snap.score).padStart(6, '0')}</strong></div><div className="pair"><p><span>Level</span><b>{String(snap.level).padStart(2, '0')}</b></p><p><span>Layers</span><b>{String(snap.layers).padStart(2, '0')}</b></p></div><div className="next"><div className="next__copy"><span>Up next</span><strong>{NAMES[snap.nextKind]}</strong></div><i /></div></aside>}
-      {!preStart && snap.phase !== 'clearing' && <nav className="actions"><button onClick={onPause} aria-label={snap.phase === 'paused' ? 'Resume game' : 'Pause game'}><span className="actions__label">{snap.phase === 'paused' ? 'Resume' : 'Pause'}</span><span className="actions__icon" aria-hidden="true">{snap.phase === 'paused' ? '▶' : <><i /><i /></>}</span><kbd>P</kbd></button><button className="quiet" onClick={onRestart}>Restart <kbd>R</kbd></button></nav>}
+      {showBrand && <header className="brand"><span className="brand__mark" aria-label="PB">PB</span><div><h1>Panelki Blocks</h1><p>Build a kinder skyline.</p></div></header>}
+      {showStats && <aside className="stats"><div className="score"><span>Score</span><strong>{String(snap.score).padStart(6, '0')}</strong></div><div className="pair"><p><span>Level</span><b>{String(snap.level).padStart(2, '0')}</b></p><p><span>Layers</span><b>{String(snap.layers).padStart(2, '0')}</b></p></div><div className="next"><div className="next__copy"><span>Up next</span><strong>{NAMES[snap.nextKind]}</strong></div><i /></div></aside>}
+      {showActions && <nav className="actions"><button onClick={onPause} aria-label="Pause game"><span className="actions__label">Pause</span><span className="actions__icon" aria-hidden="true"><i /><i /></span><kbd>P</kbd></button><button className="quiet" onClick={onRestart}>Restart <kbd>R</kbd></button></nav>}
     </div>
   </>;
 }
 
 export function StageSelector({ stage, onChange, disabled = false }: { stage: Stage; onChange: (stage: Stage) => void; disabled?: boolean }) {
-  return <div className={`stage-field${disabled ? ' is-switching' : ''}`}><span className="stage-field__label">Stage</span><nav className="stage-selector" aria-label="Choose environment" aria-busy={disabled}><button disabled={disabled} className={stage === 'courtyard' ? 'is-active' : ''} aria-pressed={stage === 'courtyard'} onClick={() => onChange('courtyard')}>Courtyard</button><button disabled={disabled} className={stage === 'industrial' ? 'is-active' : ''} aria-pressed={stage === 'industrial'} onClick={() => onChange('industrial')}>Factory Dusk</button><button disabled={disabled} className={stage === 'sanatorium' ? 'is-active' : ''} aria-pressed={stage === 'sanatorium'} onClick={() => onChange('sanatorium')}>Sanatorium</button></nav></div>;
+  return <div className={`stage-field${disabled ? ' is-switching' : ''}`}><nav className="stage-selector" aria-label="Choose environment" aria-busy={disabled}><button disabled={disabled} className={stage === 'courtyard' ? 'is-active' : ''} aria-pressed={stage === 'courtyard'} onClick={() => onChange('courtyard')}>Courtyard</button><button disabled={disabled} className={stage === 'industrial' ? 'is-active' : ''} aria-pressed={stage === 'industrial'} onClick={() => onChange('industrial')}>Factory Dusk</button><button disabled={disabled} className={stage === 'sanatorium' ? 'is-active' : ''} aria-pressed={stage === 'sanatorium'} onClick={() => onChange('sanatorium')}>Sanatorium</button></nav></div>;
 }
 
 export function TouchControls({ act }: { act: (a: string) => void }) {
@@ -25,16 +28,17 @@ export function TouchControls({ act }: { act: (a: string) => void }) {
 
 type OverlayProps = {
   phase: Snapshot['phase']; onStart: () => void; onRestart: () => void; stage: Stage;
+  score: number; layers: number;
   stageTransitioning: boolean; onStageChange: (stage: Stage) => void; onStageRestart: (stage: Stage) => void;
 };
 
-export function Overlay({ phase, onStart, onRestart, stage, stageTransitioning, onStageChange, onStageRestart }: OverlayProps) {
+export function Overlay({ phase, onStart, onRestart, stage, score, layers, stageTransitioning, onStageChange, onStageRestart }: OverlayProps) {
   const [view, setView] = useState<'main' | 'stage'>('main');
   const [pendingStage, setPendingStage] = useState<Stage>(stage);
-  useEffect(() => { if (phase !== 'paused') setView('main'); setPendingStage(stage); }, [phase, stage]);
+  useEffect(() => { if (phase !== 'paused' && phase !== 'gameover') setView('main'); setPendingStage(stage); }, [phase, stage]);
   if (phase === 'playing' || phase === 'clearing') return null;
 
-  if (phase === 'paused' && view === 'stage') {
+  if ((phase === 'paused' || phase === 'gameover') && view === 'stage') {
     const stageName = pendingStage === 'industrial' ? 'Factory Dusk' : pendingStage === 'sanatorium' ? 'Sanatorium' : 'Courtyard';
     return <section className="overlay overlay--paused overlay--stage-change">
       <p className="stamp">Change stage</p><h2>Choose a district.</h2>
@@ -45,13 +49,14 @@ export function Overlay({ phase, onStart, onRestart, stage, stageTransitioning, 
   }
 
   const isPaused = phase === 'paused';
+  const isGameOver = phase === 'gameover';
   return <section className={`overlay overlay--${phase}`}>
-    <p className="stamp">Panelki neighbourhood plan</p>
-    <h2>{phase === 'title' ? 'A brighter block starts here.' : isPaused ? 'Take a little break.' : 'Your district is full.'}</h2>
-    <p>{phase === 'title' ? 'Stack homes, clear layers, and make room for one more neighbour.' : phase === 'gameover' ? 'Good planning. Start a fresh neighbourhood whenever you are ready.' : 'Everything will stay exactly where you left it.'}</p>
+    <h2>{phase === 'title' ? 'Build a kinder skyline.' : isPaused ? 'Take a little break.' : 'Your district is full.'}</h2>
+    <p>{phase === 'title' ? 'Stack homes, clear layers, make room for more neighbours.' : isGameOver ? "Good planning. Start a fresh neighbourhood when you're ready." : 'Everything will stay exactly where you left it.'}</p>
     {phase === 'title' && <StageSelector stage={stage} onChange={onStageChange} disabled={stageTransitioning} />}
+    {isGameOver && <div className="result-summary"><div><span>Score</span><strong>{String(score).padStart(6, '0')}</strong></div><div><span>Layers</span><strong>{String(layers).padStart(2, '0')}</strong></div></div>}
     <button onClick={onStart}>{isPaused ? 'Continue' : phase === 'gameover' ? 'Start again' : 'Start building'}</button>
     {isPaused && <div className="overlay__secondary-actions"><button className="quiet" onClick={onRestart}>Restart run</button><button className="quiet" onClick={() => setView('stage')}>Change stage</button></div>}
-    {phase !== 'title' && <div className="keys"><span><kbd>Arrows</kbd> move · <kbd>X Y Z</kbd> rotate · <kbd>Drag / scroll</kbd> view</span></div>}
+    {isGameOver && <div className="overlay__secondary-actions overlay__secondary-actions--single"><button className="quiet" onClick={() => setView('stage')}>Change stage</button></div>}
   </section>;
 }
