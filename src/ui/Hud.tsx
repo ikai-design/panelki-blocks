@@ -52,7 +52,7 @@ export function Overlay({ phase, onStart, onRestart, stage, score, layers, stage
   const isGameOver = phase === 'gameover';
   return <section className={`overlay overlay--${phase}`}>
     <h2>{phase === 'title' ? 'Build a kinder skyline.' : isPaused ? 'Take a little break.' : 'Your district is full.'}</h2>
-    <p>{phase === 'title' ? 'Stack homes, clear layers, make room for more neighbours.' : isGameOver ? "Good planning. Start a fresh neighbourhood when you're ready." : 'Everything will stay exactly where you left it.'}</p>
+    <p>{phase === 'title' ? 'Stack homes, clear layers, make room for more people.' : isGameOver ? "Good planning. Start a fresh neighbourhood when you're ready." : 'Everything will stay exactly where you left it.'}</p>
     {phase === 'title' && <StageSelector stage={stage} onChange={onStageChange} disabled={stageTransitioning} />}
     {isGameOver && <div className="result-summary"><div><span>Score</span><strong>{String(score).padStart(6, '0')}</strong></div><div><span>Layers</span><strong>{String(layers).padStart(2, '0')}</strong></div></div>}
     <button onClick={onStart}>{isPaused ? 'Continue' : phase === 'gameover' ? 'Start again' : 'Start building'}</button>
