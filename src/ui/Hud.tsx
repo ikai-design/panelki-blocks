@@ -10,8 +10,8 @@ export function Hud({ snap, onPause, onRestart }: { snap: Snapshot; onPause: () 
     <div className="hud-topbar">
       <header className="brand"><span className="brand__mark">PN</span><div><h1>Panelki Blocks</h1><p>Build a kinder skyline.</p></div></header>
       {!preStart && <aside className="stats"><div className="score"><span>Score</span><strong>{String(snap.score).padStart(6, '0')}</strong></div><div className="pair"><p><span>Level</span><b>{String(snap.level).padStart(2, '0')}</b></p><p><span>Layers</span><b>{String(snap.layers).padStart(2, '0')}</b></p></div><div className="next"><div className="next__copy"><span>Up next</span><strong>{NAMES[snap.nextKind]}</strong></div><i /></div></aside>}
+      {!preStart && snap.phase !== 'clearing' && <nav className="actions"><button onClick={onPause} aria-label={snap.phase === 'paused' ? 'Resume game' : 'Pause game'}><span className="actions__label">{snap.phase === 'paused' ? 'Resume' : 'Pause'}</span><span className="actions__icon" aria-hidden="true">{snap.phase === 'paused' ? '▶' : <><i /><i /></>}</span><kbd>P</kbd></button><button className="quiet" onClick={onRestart}>Restart <kbd>R</kbd></button></nav>}
     </div>
-    {!preStart && snap.phase !== 'clearing' && <nav className="actions"><button onClick={onPause}>{snap.phase === 'paused' ? 'Resume' : 'Pause'} <kbd>P</kbd></button><button className="quiet" onClick={onRestart}>Restart <kbd>R</kbd></button></nav>}
   </>;
 }
 

@@ -2,7 +2,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Html, OrbitControls, Stars, useGLTF } from '@react-three/drei';
 import { Bloom, EffectComposer, N8AO, Vignette } from '@react-three/postprocessing';
 import { useEffect, useMemo, useRef } from 'react';
-import { CanvasTexture, PerspectiveCamera, RepeatWrapping, SRGBColorSpace, Vector3 } from 'three';
+import { CanvasTexture, Fog, PerspectiveCamera, RepeatWrapping, SRGBColorSpace, Vector3 } from 'three';
 import type { Object3D } from 'three';
 import type { Group } from 'three';
 import { BLOCK_HEIGHT, CONFIG } from '../game/config';
@@ -113,6 +113,28 @@ function CameraFraming({ mobile }: { mobile: boolean }) {
     perspective.fov = mobile ? 42 : 35;
     perspective.updateProjectionMatrix();
   }, [camera, mobile]);
+  return null;
+}
+
+// Sanatorium keeps its cool, subdued air up close, then eases the fog back as the
+// player zooms out. This protects the field and distant sanatorium silhouette from
+// blending into one low-contrast plane at the maximum OrbitControls distance.
+function SanatoriumAtmosphere({ mobile }: { mobile: boolean }) {
+  const camera = useThree(s => s.camera);
+  const scene = useThree(s => s.scene);
+  const target = useMemo(() => new Vector3(0, mobile ? 3.7 : 5, 0), [mobile]);
+  useFrame((_, dt) => {
+    const fog = scene.fog as Fog | null;
+    if (!fog) return;
+    const distance = camera.position.distanceTo(target);
+    const progress = Math.min(1, Math.max(0, (distance - 18) / 16));
+    const eased = progress * progress * (3 - 2 * progress);
+    const near = 32 + eased * 10;
+    const far = 72 + eased * 18;
+    const smoothing = 1 - Math.exp(-Math.min(dt, .05) * 5);
+    fog.near += (near - fog.near) * smoothing;
+    fog.far += (far - fog.far) * smoothing;
+  });
   return null;
 }
 
@@ -396,15 +418,15 @@ export function GameScene({ snap, onViewBasis, showRotationHint, onDismissRotati
   const sanatorium = theme === 'sanatorium';
   const mobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches;
   return <Canvas shadows dpr={mobile ? [1, 1.25] : [1, 1.65]} camera={{ position: [14, 14, 20], fov: 35 }} gl={{ antialias: true, powerPreference: 'high-performance' }}>
-    <color attach="background" args={[industrial ? '#111619' : sanatorium ? '#303c3f' : '#171b1d']} /><fog attach="fog" args={[industrial ? '#1b2225' : sanatorium ? '#424e4f' : '#242726', sanatorium ? 22 : industrial ? 18 : 20, sanatorium ? 52 : industrial ? 43 : 48]} /><ambientLight intensity={industrial ? .3 : sanatorium ? .62 : .32} color={industrial ? '#b8c5cb' : sanatorium ? '#c7d3d3' : '#ffffff'} />
-    <directionalLight castShadow position={[-8, 14, 7]} intensity={industrial ? 1.35 : sanatorium ? 1.35 : 1.65} color={industrial ? '#aabac1' : sanatorium ? '#cbd6d5' : '#ffc18b'} shadow-mapSize={[1024, 1024]} /><pointLight position={[5, 5, -2]} intensity={industrial ? 12 : sanatorium ? 4 : 18} color={industrial ? '#d08b45' : sanatorium ? '#d0b894' : '#87a5bf'} />
+    <color attach="background" args={[industrial ? '#111619' : sanatorium ? '#303c3f' : '#171b1d']} /><fog attach="fog" args={[industrial ? '#1b2225' : sanatorium ? '#3a4a4c' : '#242726', sanatorium ? 32 : industrial ? 18 : 20, sanatorium ? 72 : industrial ? 43 : 48]} /><ambientLight intensity={industrial ? .3 : sanatorium ? .55 : .32} color={industrial ? '#b8c5cb' : sanatorium ? '#c7d3d3' : '#ffffff'} />
+    <directionalLight castShadow position={[-8, 14, 7]} intensity={industrial ? 1.35 : sanatorium ? 1.42 : 1.65} color={industrial ? '#aabac1' : sanatorium ? '#cbd6d5' : '#ffc18b'} shadow-mapSize={[1024, 1024]} /><pointLight position={[5, 5, -2]} intensity={industrial ? 12 : sanatorium ? 4 : 18} color={industrial ? '#d08b45' : sanatorium ? '#d0b894' : '#87a5bf'} />
     <Stars radius={50} depth={20} count={sanatorium ? 12 : industrial ? 42 : 100} factor={1.1} fade speed={.12} />
     {/* All three districts stay mounted after the first load; only one is rendered. */}
     <group visible={theme === 'courtyard'}><Terrain /><Neighbourhood /><EnvironmentDetails clearPulse={snap.clearPulse} /></group>
     <group visible={industrial}><Terrain industrial /><IndustrialEnvironment /><ChernobylStationLandmark /><FactoryDuskVignette /></group>
     <group visible={sanatorium}><Terrain sanatorium /><SanatoriumEnvironment /></group>
-    <Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />
+    <Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />{sanatorium && <SanatoriumAtmosphere mobile={mobile} />}
     {showRotationHint && <RotationHint snap={snap} onDismiss={onDismissRotationHint} />}<SceneReady onReady={onReady} /><ContactShadows position={[0, -.7, 0]} opacity={.65} scale={30} blur={2.5} /><OrbitControls makeDefault target={[0, mobile ? 3.7 : 5, 0]} minDistance={11} maxDistance={34} minPolarAngle={Math.PI * .18} maxPolarAngle={Math.PI * .48} enablePan={false} rotateSpeed={.65} zoomSpeed={.8} />
-    <EffectComposer multisampling={0}><N8AO aoRadius={1.15} intensity={.95} /><Bloom luminanceThreshold={.86} intensity={.16} mipmapBlur /><Vignette eskil={false} offset={.25} darkness={.42} /></EffectComposer>
+    <EffectComposer multisampling={0}><N8AO aoRadius={1.15} intensity={sanatorium ? .78 : .95} /><Bloom luminanceThreshold={.86} intensity={.16} mipmapBlur /><Vignette eskil={false} offset={.25} darkness={sanatorium ? .3 : .42} /></EffectComposer>
   </Canvas>;
 }
