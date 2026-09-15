@@ -16,6 +16,7 @@ import type { Stage } from '../ui/Hud';
   '/assets/buildings/khrushchyovka-textured-v1.glb',
   '/assets/environment/dead-tree.glb',
   '/assets/environment/playground.glb',
+  '/assets/environment/courtyard/playground-roundabout.glb',
   '/assets/environment/factory-dusk.glb',
   '/assets/environment/factory-dusk/chernobyl-station.glb',
   '/assets/environment/factory-dusk/coffee-kiosk.glb',
@@ -258,7 +259,8 @@ function CourtyardEasterEgg({ clearPulse }: { clearPulse: number }) {
     cat.current.rotation.z = Math.sin(t * Math.PI * 2) * .06;
     lid.current.rotation.x = -.04 + (wasTriggered ? Math.sin(t * Math.PI * 2.2) * .1 * (1 - t) : 0);
   });
-  return <group position={[4, 0, -4.8]}>
+  // Keep the dumpster peripheral and clearly separated from the foreground roundabout.
+  return <group position={[6.4, 0, -5.6]}>
     <mesh position={[0, .34, 0]} castShadow receiveShadow><boxGeometry args={[1.15, .68, .78]} /><meshStandardMaterial color="#3d4541" roughness={.9} /></mesh>
     <mesh position={[0, .08, .4]}><boxGeometry args={[.88, .12, .06]} /><meshStandardMaterial color="#303633" roughness={1} /></mesh>
     <group ref={lid} position={[0, .72, 0]}>
@@ -335,8 +337,9 @@ function AmbientTrash() {
 function EnvironmentDetails({ clearPulse }: { clearPulse: number }) {
   const tree = useGLTF('/assets/environment/dead-tree.glb').scene;
   const playground = useGLTF('/assets/environment/playground.glb').scene;
+  const roundabout = useGLTF('/assets/environment/courtyard/playground-roundabout.glb').scene;
   const trees = useMemo(() => [[-8, -5, .8, 0], [-6, 5, 1.1, .7], [7, 5, .9, 1.8], [9, -4, 1.2, 2.5], [-10, 1, .75, -.5], [5, -7, .85, .3]] as [number, number, number, number][], []);
-  return <group position={[0, -1, 0]}>{trees.map(([x, z, s, r], i) => <primitive key={i} object={tree.clone(true)} position={[x, 0, z]} scale={s} rotation={[0, r, 0]} />)}<primitive object={playground.clone(true)} position={[-4, 0, -3]} scale={.72} rotation={[0, .35, 0]} /><CourtyardEasterEgg clearPulse={clearPulse} /><AmbientTrash /></group>;
+  return <group position={[0, -1, 0]}>{trees.map(([x, z, s, r], i) => <primitive key={i} object={tree.clone(true)} position={[x, 0, z]} scale={s} rotation={[0, r, 0]} />)}<primitive object={playground.clone(true)} position={[-4, 0, -3]} scale={.72} rotation={[0, .35, 0]} /><primitive object={roundabout.clone(true)} position={[4.2, -.08, -4.2]} rotation={[0, -.18, 0]} /><CourtyardEasterEgg clearPulse={clearPulse} /><AmbientTrash /></group>;
 }
 
 function IndustrialEnvironment() {
