@@ -110,7 +110,8 @@ function CameraFraming({ mobile }: { mobile: boolean }) {
     const perspective = camera as PerspectiveCamera;
     const position: [number, number, number] = mobile ? [11.5, 12.5, 21] : [14, 14, 20];
     perspective.position.set(position[0], position[1], position[2]);
-    perspective.fov = mobile ? 42 : 35;
+    // Include the hidden maneuver rows in the initial frame without changing the playfield scale contract.
+    perspective.fov = mobile ? 48 : 40;
     perspective.updateProjectionMatrix();
   }, [camera, mobile]);
   return null;
@@ -426,7 +427,7 @@ export function GameScene({ snap, onViewBasis, showRotationHint, onDismissRotati
     <group visible={industrial}><Terrain industrial /><IndustrialEnvironment /><ChernobylStationLandmark /><FactoryDuskVignette /></group>
     <group visible={sanatorium}><Terrain sanatorium /><SanatoriumEnvironment /></group>
     <Well snap={snap} industrial={industrial} /><CameraFraming mobile={mobile} /><CameraBasis onChange={onViewBasis} />{sanatorium && <SanatoriumAtmosphere mobile={mobile} />}
-    {showRotationHint && <RotationHint snap={snap} onDismiss={onDismissRotationHint} />}<SceneReady onReady={onReady} /><ContactShadows position={[0, -.7, 0]} opacity={.65} scale={30} blur={2.5} /><OrbitControls makeDefault target={[0, mobile ? 3.7 : 5, 0]} minDistance={11} maxDistance={34} minPolarAngle={Math.PI * .18} maxPolarAngle={Math.PI * .48} enablePan={false} rotateSpeed={.65} zoomSpeed={.8} />
+    {showRotationHint && <RotationHint snap={snap} onDismiss={onDismissRotationHint} />}<SceneReady onReady={onReady} /><ContactShadows position={[0, -.7, 0]} opacity={.65} scale={30} blur={2.5} /><OrbitControls makeDefault target={[0, mobile ? 5.5 : 6.3, 0]} minDistance={11} maxDistance={34} minPolarAngle={Math.PI * .18} maxPolarAngle={Math.PI * .48} enablePan={false} rotateSpeed={.65} zoomSpeed={.8} />
     <EffectComposer multisampling={0}><N8AO aoRadius={1.15} intensity={sanatorium ? .78 : .95} /><Bloom luminanceThreshold={.86} intensity={.16} mipmapBlur /><Vignette eskil={false} offset={.25} darkness={sanatorium ? .3 : .42} /></EffectComposer>
   </Canvas>;
 }

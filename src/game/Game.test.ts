@@ -1,4 +1,4 @@
-import {describe,it,expect,vi} from 'vitest';import {CLEAR_TIMING,Game} from './Game';import {CONFIG,SHAPES} from './config';
+import {describe,it,expect,vi} from 'vitest';import {CLEAR_TIMING,Game} from './Game';import {ACTIVE_HEIGHT,CONFIG,SHAPES,SPAWN_BUFFER} from './config';
 describe('Panelki rules',()=>{it('starts and drops',()=>{const g=new Game();g.start();g.drop();expect(g.board.size).toBe(4);expect(g.score).toBeGreaterThan(0)});it('pauses and restarts',()=>{const g=new Game();g.start();g.togglePause();const a=JSON.stringify(g.pos);g.tick();expect(JSON.stringify(g.pos)).toBe(a);g.restart();expect(g.board.size).toBe(0)});it('keeps cells inside the well',()=>{for(let i=0;i<50;i++){const g=new Game();g.start();for(let n=0;n<40&&!['gameover'].includes(g.phase);n++){g.rotate('X');g.move([n%3-1,0,0]);g.drop()}expect([...g.board.values()].every(c=>c.pos.every((v,j)=>v>=0&&v<[CONFIG.width,CONFIG.depth,CONFIG.height][j]))).toBe(true)}})});
 
 function fillLayer(game:Game,z:number,count:number){
@@ -15,7 +15,7 @@ describe('first clear loop',()=>{
     expect(ordinary.snapshot().clearEvent).toBeNull();
     const game=new Game();game.start();
     const shape=SHAPES[game.nextKind], maxX=Math.max(...shape.map(c=>c[0])),maxZ=Math.max(...shape.map(c=>c[2]));
-    const pos:[number,number,number]=[Math.floor((CONFIG.width-1-maxX)/2),1,CONFIG.height-1-maxZ];
+    const pos:[number,number,number]=[Math.floor((CONFIG.width-1-maxX)/2),1,ACTIVE_HEIGHT-1-maxZ];
     game.board.set(pos.join(','),{pos,kind:0});game.drop();
     expect(game.phase).toBe('gameover');
     expect(game.snapshot().active).toHaveLength(0);
@@ -77,5 +77,119 @@ describe('first clear loop',()=>{
       expect(game.score).toBe(0);expect(game.snapshot().clearEvent).toBeNull();
       expect(game.snapshot().clearReward).toBeNull();
     }finally{vi.useRealTimers()}
+  });
+});
+
+describe('active movement and collision invariants',()=>{
+  it('keeps the full empty-board horizontal range for every piece family',()=>{
+    SHAPES.forEach(shape=>{
+      const game=new Game();game.start();game.shape=shape.map(c=>[...c] as [number,number,number]);game.pos=[0,0,8];
+      const maxX=Math.max(...shape.map(c=>c[0]));
+      while(game.move([1,0,0])){}
+      expect(game.pos[0]).toBe(CONFIG.width-1-maxX);
+      const maxY=Math.max(...shape.map(c=>c[1]));
+      game.pos=[0,0,8];
+      while(game.move([0,1,0])){}
+      expect(game.pos[1]).toBe(CONFIG.depth-1-maxY);
+    });
+  });
+
+  it('allows a piece to travel above a tall central stack at multiple heights',()=>{
+    [0,2,4,6,8].forEach(height=>{
+      const game=new Game();game.start();game.shape=[[0,0,0]];game.pos=[0,1,11];
+      for(let z=0;z<height;z++)game.board.set(`2,1,${z}`,{pos:[2,1,z],kind:0});
+      while(game.move([1,0,0])){}
+      expect(game.pos[0]).toBe(CONFIG.width-1);
+    });
+  });
+
+  it('keeps lateral reach unchanged at different active heights above the same board',()=>{
+    [6,8,10].forEach(activeZ=>{
+      const game=new Game();game.start();game.shape=[[0,0,0]];game.pos=[0,1,activeZ];
+      for(let z=0;z<5;z++)game.board.set(`2,1,${z}`,{pos:[2,1,z],kind:0});
+      while(game.move([1,0,0])){}
+      expect(game.pos[0]).toBe(CONFIG.width-1);
+    });
+  });
+
+  it('rejects only a true same-Z overlap or a board-boundary violation',()=>{
+    const game=new Game();game.start();game.shape=[[0,0,0]];game.pos=[1,1,8];
+    game.board.set('2,1,8',{pos:[2,1,8],kind:0});
+    expect(game.move([1,0,0])).toBe(false);
+    expect(game.pos).toEqual([1,1,8]);
+    game.board.clear();game.pos=[0,1,8];
+    expect(game.move([-1,0,0])).toBe(false);
+    game.pos=[CONFIG.width-1,1,8];
+    expect(game.move([1,0,0])).toBe(false);
+  });
+
+  it('uses the rotated logical footprint for movement bounds',()=>{
+    const axes=['X','Y','Z'] as const;
+    axes.forEach(axis=>{
+      const game=new Game();game.start();game.shape=SHAPES[0].map(c=>[...c] as [number,number,number]);game.pos=[0,0,8];
+      expect(game.rotate(axis)).toBe(true);
+      const cells=game.cells();
+      expect(cells.every(([x,y,z])=>x>=0&&x<CONFIG.width&&y>=0&&y<CONFIG.depth&&z>=0&&z<CONFIG.height)).toBe(true);
+      const maxX=Math.max(...game.shape.map(c=>c[0]));
+      while(game.move([1,0,0])){}
+      expect(game.pos[0]).toBe(CONFIG.width-1-maxX);
+    });
+  });
+
+  it('preserves hard-drop landing after lateral movement',()=>{
+    const game=new Game();game.start();game.shape=[[0,0,0]];game.pos=[0,1,8];
+    game.board.set('2,1,0',{pos:[2,1,0],kind:0});
+    expect(game.move([1,0,0])).toBe(true);expect(game.move([1,0,0])).toBe(true);
+    game.drop();
+    expect(game.board.get('2,1,1')?.pos).toEqual([2,1,1]);
+    expect(game.phase).toBe('playing');
+  });
+});
+
+describe('hidden spawn maneuver buffer',()=>{
+  it('spawns above a tall visible stack when buffer space remains',()=>{
+    const game=new Game();game.start();
+    for(let z=0;z<CONFIG.height-1;z++)game.board.set(`2,1,${z}`,{pos:[2,1,z],kind:0});
+    game.nextKind=0;
+    (game as unknown as {spawn:()=>void}).spawn();
+    expect(game.phase).toBe('playing');
+    expect(game.cells().some(([, , z])=>z>=CONFIG.height)).toBe(true);
+    expect(Math.min(...game.cells().map(([, , z])=>z))).toBe(ACTIVE_HEIGHT-1-3);
+  });
+
+  it('allows movement across the full footprint while a piece is in the buffer',()=>{
+    const game=new Game();game.start();game.shape=[[0,0,0]];game.pos=[0,1,ACTIVE_HEIGHT-1];
+    while(game.move([1,0,0])){}
+    expect(game.pos[0]).toBe(CONFIG.width-1);
+  });
+
+  it('keeps the ghost inside the visible build volume after a buffer drop',()=>{
+    const game=new Game();game.start();game.shape=[[0,0,0]];game.pos=[2,1,ACTIVE_HEIGHT-1];
+    game.board.set('2,1,0',{pos:[2,1,0],kind:0});
+    expect(game.ghost()).toEqual([[2,1,1]]);
+    game.drop();
+    expect(game.board.get('2,1,1')?.pos).toEqual([2,1,1]);
+    expect(game.score).toBe(20);
+  });
+
+  it('allows X/Y/Z rotation while the active piece occupies buffer rows',()=>{
+    (['X','Y','Z'] as const).forEach(axis=>{
+      const game=new Game();game.start();game.shape=[[0,0,0],[0,0,1],[0,0,2],[0,0,3]];game.pos=[0,0,11];
+      expect(game.cells().some(([, , z])=>z>=CONFIG.height)).toBe(true);
+      expect(game.rotate(axis)).toBe(true);
+      expect(game.cells().every(([x,y,z])=>x>=0&&x<CONFIG.width&&y>=0&&y<CONFIG.depth&&z>=0&&z<ACTIVE_HEIGHT)).toBe(true);
+    });
+  });
+
+  it('locks pieces at or below the visible ceiling but games over above it',()=>{
+    const valid=new Game();valid.start();valid.shape=[[0,0,0]];valid.pos=[0,0,CONFIG.height-1];valid.board.set('0,0,10',{pos:[0,0,10],kind:0});valid.drop();
+    expect(valid.phase).toBe('playing');expect(valid.board.get('0,0,11')?.pos).toEqual([0,0,11]);
+    const blocked=new Game();blocked.start();blocked.shape=[[0,0,0],[0,0,1]];blocked.pos=[2,1,CONFIG.height];
+    blocked.board.set('2,1,11',{pos:[2,1,11],kind:0});blocked.drop();
+    expect(blocked.phase).toBe('gameover');expect(blocked.board.has('2,1,12')).toBe(false);
+  });
+
+  it('keeps the clear plane at the original 5 by 4 size',()=>{
+    expect(CONFIG.width*CONFIG.depth).toBe(20);
   });
 });
